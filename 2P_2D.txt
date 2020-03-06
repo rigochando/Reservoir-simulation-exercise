@@ -1,3 +1,5 @@
+ #Code of two porosity model and 2d. Fortran
+ 
  program Proyecto_2D
         implicit none
         real::dx,dy,dz,L,phi,k,bo,miu,Qsc,Pi,co,dt,tt,bc,phim,km,com,sigma,Lm,cm,gamam,cmi,cfi,Qfi,Qmi,tomf
@@ -10,25 +12,25 @@
         dy=50
         dz=50
         L=2500
-        phi=0.01 !Fractura
-        phim=0.3 !Matriz
-        k=10     !Fractura
-        km=1     !Fractura
+        phi=0.01 !Fracture
+        phim=0.3 !Matrix
+        k=10     !Fracture
+        km=1     !Fracture
         bo=1   
         miu=0.695    
         Qsc=-200
         Pi=3000
-        co=0.00004  !Fractura
+        co=0.00004  !Fracture
         Lm=	16.4 !ft
-        cm=0.000004 !Fractura
+        cm=0.000004 !Fracture
         sigma= 4*(1/(Lm**2))  !0.0446
         dt=1
         tt=30
         bc=0.001127
         ac=	5.614583
         CP=1275
-        open(1,file="campo de presion.xls",status="old")
-        open(2,file="campo de presion_mat.xls",status="old")
+        open(1,file="pressure.xls",status="old")
+        open(2,file="pressure_mat.xls",status="old")
         A=dx*dz
         Vb=dx*dy*dz
         nx=L/dx
@@ -55,7 +57,7 @@
         allocate(Pm(nc)) 
         allocate(Pmdt(nc))
          
-        !Condicion inicial
+        !Initials conditions
         do i=1,nc
         PA(i)=Pi
         PF(i)=Pi
@@ -82,7 +84,7 @@
 	        Q(i)=Qfi+Qmi !-Acum
         end do
 
-        !Condiciones de frontera
+        !Boundary conditions
         !fila 1
         do i=1,nx
         C(i)=-(Tx+Tx+Ty+Acum+tomf-((tomf**2)/cmi))
@@ -123,7 +125,7 @@
 
 
         error=1
-        !Metodo Line SOR, solucion por cada linea
+        !Line SOR method, solution by row
         DO WHILE ( Error >=0.00001 ) 
          
 	        !fila uno
