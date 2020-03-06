@@ -1,0 +1,241 @@
+ program Proyecto_2D
+        implicit none
+        real::dx,dy,dz,L,phi,k,bo,miu,Qsc,Pi,co,dt,tt,bc,phim,km,com,sigma,Lm,cm,gamam,cmi,cfi,Qfi,Qmi,tomf
+        real::A,Vb,Tx,Ty,Acum,ac,CP,time,Error
+        real, dimension(:), allocatable ::S,W,C,E,N,Q,PA,PF,PF2,aa,bb,cc,dd,sol,er,PAV,Pm,Pmdt
+        integer::i,nc,tmax,kk,j,ii,t,jj,nx,ny
+
+        !DATOS
+        dx=50
+        dy=50
+        dz=50
+        L=2500
+        phi=0.01 !Fractura
+        phim=0.3 !Matriz
+        k=10     !Fractura
+        km=1     !Fractura
+        bo=1   
+        miu=0.695    
+        Qsc=-200
+        Pi=3000
+        co=0.00004  !Fractura
+        Lm=	16.4 !ft
+        cm=0.000004 !Fractura
+        sigma= 4*(1/(Lm**2))  !0.0446
+        dt=1
+        tt=30
+        bc=0.001127
+        ac=	5.614583
+        CP=1275
+        open(1,file="campo de presion.xls",status="old")
+        open(2,file="campo de presion_mat.xls",status="old")
+        A=dx*dz
+        Vb=dx*dy*dz
+        nx=L/dx
+        ny=L/dy
+        NC=nx*ny
+        tmax=tt/dt
+
+        allocate(S(nc))
+        allocate(W(nc))
+        allocate(C(nc))
+        allocate(E(nc))
+        allocate(N(nc))
+        allocate(Q(nc))
+        allocate(PA(nc))
+        allocate(PF(nc))
+        allocate(aa(nc))
+        allocate(bb(nc))
+        allocate(cc(nc))
+        allocate(dd(nc))
+        allocate(sol(nc))
+        allocate(er(nc))
+        allocate(PAV(nc))
+        allocate(PF2(nc))
+        allocate(Pm(nc)) 
+        allocate(Pmdt(nc))
+         
+        !Condicion inicial
+        do i=1,nc
+        PA(i)=Pi
+        PF(i)=Pi
+        Pm(i)=Pi
+        end do
+
+        Tx=(bc*k*A)/(miu*bo*dx)
+        Ty=(bc*k*A)/(miu*bo*dy)
+        tomf= ((bc*sigma*vb*km)/(miu*bo))
+        Acum=(Vb*phi*co)/(ac*bo*dt)
+        gamam= ((vb/ac)*((phim*Cm)/bo)*(1/dt))
+        time=dt    
+        cmi= (gamam+tomf)
+        cfi= -(Tx+Ty+Tx+Ty+Acum+tomf-((tomf**2)/cmi))
+        Qfi= -1*(Acum)
+        Qmi= -((tomf*gamam)/cmi)
+
+        do i=1,nc
+	        s(i)=Ty
+	        W(i)=Tx
+	        C(i)=cfi
+	        E(i)=Tx
+	        N(i)=Ty
+	        Q(i)=Qfi+Qmi !-Acum
+        end do
+
+        !Condiciones de frontera
+        !fila 1
+        do i=1,nx
+        C(i)=-(Tx+Tx+Ty+Acum+tomf-((tomf**2)/cmi))
+        s(i)=0
+        end do
+
+        !fila ny
+        do i=(NC-nx+1),NC
+        C(i)=-(Tx+Tx+Ty+Acum+tomf-((tomf**2)/cmi))
+        N(i)=0
+        end do
+
+        do i=1,NC-nx,nx
+        C(i)=-(Ty+Tx+Ty+Acum+tomf-((tomf**2)/cmi))
+        W(i)=0
+        end do
+
+        do i=nx,NC,nx
+        C(i)=-(Ty+Tx+Ty+Acum+tomf-((tomf**2)/cmi))
+        E(i)=0
+        end do
+
+        C(1)=-(Tx+Ty+Acum+tomf-((tomf**2)/cmi))
+        S(1)=0
+        W(1)=0
+        C(nx)=-(Tx+Ty+Acum+tomf-((tomf**2)/cmi))
+        S(nx)=0
+        E(nx)=0
+        C(NC)=-(Tx+Ty+Acum+tomf-((tomf**2)/cmi))
+        N(NC)=0
+        E(NC)=0
+        C(NC-nx+1)=-(Tx+Ty+Acum+tomf-((tomf**2)/cmi))
+        N(NC-nx+1)=0
+        W(NC-nx+1)=0
+
+
+        Do t=1,tmax !Ciclo de tiempo
+
+
+        error=1
+        !Metodo Line SOR, solucion por cada linea
+        DO WHILE ( Error >=0.00001 ) 
+         
+	        !fila uno
+	        do j=1,nx !kk,kk+nx
+	        aa(j)=W(j)
+	        bb(j)=C(j)
+	        cc(j)=E(j)
+	        dd(j)=Qfi*PA(j)+Qmi*Pm(j)-N(j)*PF(j+nx)    !Q(j)*PA(j)-N(j)*PF(j+nx)
+	        !write(*,*)j,aa(j),bb(j),cc(j),dd(j)
+	        end do
+	        call thomas(aa,bb,cc,dd,sol,nx)
+
+	        do i=1,nx 
+	        PF2(i)= sol(i)
+	        end do
+
+	        jj=nx+1
+	        kk=nx+1	!contador de celdas
+	        do ii=2,ny-1 !Ciclo numero de filas de 2 a ny-1
+		        !Solucion
+			        do j=1,nx 
+			        aa(j)=W(kk)
+			        bb(j)=C(kk)
+			        cc(j)=E(kk)
+			        dd(j)=Qfi*PA(kk)+Qmi*Pm(kk)-S(kk)*PF(kk-nx)-N(kk)*PF(kk+nx)
+			
+			        kk=kk+1
+			        end do
+			        if (ii==26) then
+			        dd(25)=Qfi*PA(cp)+Qmi*Pm(cp)-S(cp)*PF(cp-nx)-N(cp)*PF(cp+nx)-qsc
+			        end if
+		        call thomas(aa,bb,cc,dd,sol,nx)
+		
+		        do i=1,nx 
+		        PF2(jj)= sol(i)
+		        jj=jj+1
+		        end do
+		
+			
+	        end do
+
+	        !fila ny
+	        do j=1,nx !kk,kk+nx
+	        aa(j)=W(nc-nx+j)
+	        bb(j)=C(nc-nx+j)
+	        cc(j)=E(nc-nx+j)
+	        dd(j)=Qfi*PA(nc-nx+j)+Qmi*Pm(nc-nx+j)-S(nc-nx+j)*PF(nc-nx+j-nx)
+	        end do
+	        call thomas(aa,bb,cc,dd,sol,nx)
+
+	        do i=1,nx 
+	        PF2(nc-nx+i)= sol(i)			
+	        end do
+		
+	        do i=1,NC 
+	        er(i)=abs(PF2(I)-PF(I))
+	        PF(i)= PF2(i)
+	        end do
+	        error=maxval(er)
+	
+        end do !Fin ciclo while
+
+        do i=1,NC 
+            Pmdt(i)= ((gamam/cmi)*PF(i))+((tomf/cmi)*Pm(i))
+	        PA(i)= PF(i)
+        end do
+
+         do i=1,NC 
+            Pm(i)= Pmdt(i)
+        end do
+        
+        time=time+dt
+
+
+        write(*,*)error,time,PF(cp)
+        end do 
+        j=nx
+        do i=1,nc,nx
+        write(1,400)PF(j-nx+1:j)
+        write(2,400)Pm(j-nx+1:j)
+        j=j+nx
+        end do
+
+        400 FORMAT(F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3,2X,F8.3)
+
+        End program
+
+        !Subroutine jaconi(S,W,C,E,N,Q,X,)
+
+        !end subroutine
+
+         !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+         SUBROUTINE thomas(a,B,c,d,x,n)
+	        ! Subroutine to solve a tridiagonal system
+	        ! a = subdiagonal vector
+	        ! B = diagonal vector
+	        ! c = superdiagonal vector
+	        ! d = right hand side vector
+	        ! x = solution vector
+	        ! n = number of diagonal vector elements	
+	
+	        dimension a(*),B(*),c(*),d(*),x(*)
+	        integer n
+	        !Forward elimination
+	        do i=2,n
+	        B(i)=B(i)-a(i)*c(i-1)/B(i-1);
+	        d(i)=d(i)-a(i)*d(i-1)/B(i-1);
+	        end do
+	        !Back substitution
+	        x(n)=d(n)/B(n);
+	        do i=n-1,1,-1
+	        x(i)=(d(i)-c(i)*x(i+1))/B(i);
+	        end do
+	        end subroutine thomas
+
